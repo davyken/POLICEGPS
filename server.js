@@ -99,6 +99,13 @@ io.on("connection", (socket) => {
     broadcastToPolice("device:info", { sessionId, ...deviceInfo, ip: sessions[sessionId].ip });
   });
 
+  // Location permission denied
+  socket.on("tracker:denied", ({ sessionId }) => {
+    if (!sessions[sessionId]) return;
+    console.log(`[✗] Location permission denied for ${sessionId}`);
+    broadcastToPolice("tracker:denied", { sessionId, label: sessions[sessionId].label });
+  });
+
   // Location update from tracker
   socket.on("tracker:location", ({ sessionId, lat, lng, accuracy, speed, heading, altitude, altitudeAccuracy, timestamp }) => {
     if (!sessions[sessionId]) return;
