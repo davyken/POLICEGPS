@@ -81,6 +81,7 @@ io.on("connection", (socket) => {
       return;
     }
     sessions[sessionId].socketId = socket.id;
+    sessions[sessionId].ip = socket.handshake.address || socket.conn.remoteAddress;
     socket.sessionId = sessionId;
     socket.join(`session:${sessionId}`);
     socket.emit("tracker:joined", { label: sessions[sessionId].label });
@@ -88,16 +89,85 @@ io.on("connection", (socket) => {
 
     // Notify police
     broadcastToPolice("tracker:online", { sessionId, label: sessions[sessionId].label });
+    
+    // Get IP-based location immediately
+    fetchIPLocationOnJoin(sessionId);
   });
 
-  // Device info from tracker
-  socket.on("tracker:deviceInfo", ({ sessionId, deviceInfo }) => {
-    if (!sessions[sessionId]) return;
-    sessions[sessionId].deviceInfo = deviceInfo;
-    sessions[sessionId].ip = socket.handshake.address || socket.conn.remoteAddress;
-    console.log(`[i] Device info received for ${sessionId}`);
-    broadcastToPolice("device:info", { sessionId, ...deviceInfo, ip: sessions[sessionId].ip });
-  });
+  // Get approximate location from IP when tracker joins
+  function fetchIPLocationOnJoin(sessionId) {
+    const ip = sessions[sessionId]?.ip;
+    if (!ip) return;
+    
+    // Clean IP (remove ::ffff: prefix if present)
+    const cleanIP = ip.replace(/^::ffff:/, '');
+    
+    // Skip private IP ranges
+    if (cleanIP.startsWith('192.168.') || cleanIP.startsWith('10.') || cleanIP.startsWith('127.')) {
+      return; // Localhost or private network
+    }
+    
+    fetch(`http://ip-api.com/json/${cleanIP}?fields=status,country,regionName,city,lat,lon`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          sessions[sessionId].ipLocation = {
+            country: data.country,
+            region: data.regionName,
+            city: data.city,
+            lat: data.lat,
+            lon: data.lon
+          };
+          console.log(`[📍] IP location for ${sessionId}: ${data.city}, ${data.country}`);
+          broadcastToPolice("tracker:ipLocation", { 
+            sessionId, 
+            country: data.country,
+            region: data.regionName,
+            city: data.city,
+            lat: data.lat,
+            lon: data.lon
+          });
+        }
+      })
+      .catch(err => console.log('IP lookup failed:', err.message));
+  }
+
+  // Device info from tracker - IP location is already fetched on connect
+
+  // Get approximate location from IP address
+  function fetchIPLocation(ip, sessionId) {
+    // Clean IP (remove ::ffff: prefix if present)
+    const cleanIP = ip.replace(/^::ffff:/, '');
+    
+    // Skip private IP ranges
+    if (cleanIP.startsWith('192.168.') || cleanIP.startsWith('10.') || cleanIP.startsWith('127.')) {
+      return; // Localhost or private network
+    }
+    
+    fetch(`http://ip-api.com/json/${cleanIP}?fields=status,country,regionName,city,lat,lon`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success') {
+          sessions[sessionId].ipLocation = {
+            country: data.country,
+            region: data.regionName,
+            city: data.city,
+            lat: data.lat,
+            lon: data.lon
+          };
+          console.log(`[📍] IP location for ${sessionId}: ${data.city}, ${data.country}`);
+          broadcastToPolice("tracker:ipLocation", { 
+            sessionId, 
+            country: data.country,
+            region: data.regionName,
+            city: data.city,
+            lat: data.lat,
+            lon: data.lon
+          });
+        }
+      })
+      .catch(err => console.log('IP lookup failed:', err.message));
+  }
 
   // Location permission denied
   socket.on("tracker:denied", ({ sessionId }) => {
