@@ -805,8 +805,8 @@ async function generateLink() {
     const data = await res.json();
     if (data.error) { alert(data.error); return; }
 
-    // Server returns full URL, use it directly
-    const url = data.trackingUrl;
+    // Server returns path, prepend origin to make full URL
+    const url = `${location.origin}${data.trackingUrl}`;
     document.getElementById("linkBox").textContent = url;
     document.getElementById("linkBox").dataset.url = url;
     document.getElementById("generatedLink").style.display = "block";
