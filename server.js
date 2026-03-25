@@ -12,7 +12,6 @@ const io = new Server(server, {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
-const POLICE_PASSWORD = process.env.POLICE_PASSWORD || "police2024"; // Change this!
 
 // ─── In-memory store ──────────────────────────────────────────────────────────
 const sessions = {};       // { sessionId: { label, positions:[], lastSeen, socketId } }
@@ -22,27 +21,21 @@ const policeClients = new Set(); // socket IDs of authenticated dashboards
 app.use(express.json());
 app.use(express.static(path.join(__dirname, "public")));
 
-// ─── REST: Create a tracking session (police only) ────────────────────────────
+// ─── REST: Create a tracking session ───────────────────────────────────────────
 app.post("/api/session", (req, res) => {
-  const { password, label } = req.body;
-  if (password !== POLICE_PASSWORD)
-    return res.status(401).json({ error: "Unauthorized" });
+  const { label } = req.body;
 
   const id = uuidv4();
   sessions[id] = { id, label: label || "Suspect", positions: [], lastSeen: null };
   console.log(`[+] Session created: ${id} (${label})`);
   
-  // Generate tracking URL path only
   const trackingPath = `/track/${id}`;
   
   res.json({ sessionId: id, trackingUrl: trackingPath });
 });
 
-// ─── REST: Get all sessions (police only) ─────────────────────────────────────
+// ─── REST: Get all sessions ─────────────────────────────────────────────────────
 app.get("/api/sessions", (req, res) => {
-  const { password } = req.query;
-  if (password !== POLICE_PASSWORD)
-    return res.status(401).json({ error: "Unauthorized" });
   res.json(Object.values(sessions).map(s => ({
     id: s.id, label: s.label, lastSeen: s.lastSeen,
     positionCount: s.positions.length,
@@ -51,6 +44,10 @@ app.get("/api/sessions", (req, res) => {
 });
 
 // ─── Pages ────────────────────────────────────────────────────────────────────
+app.get("/", (req, res) => {
+  res.sendFile(path.join(__dirname, "public", "index.html"));
+});
+
 app.get("/track/:sessionId", (req, res) => {
   if (!sessions[req.params.sessionId])
     return res.status(404).send("Link not found.");
@@ -65,20 +62,16 @@ app.get("/dashboard", (req, res) => {
 io.on("connection", (socket) => {
   console.log(`[~] Socket connected: ${socket.id}`);
 
-  // Police dashboard authentication
-  socket.on("police:auth", ({ password }) => {
-    if (password === POLICE_PASSWORD) {
-      policeClients.add(socket.id);
-      socket.emit("police:auth:ok");
-      // Send current session list
-      socket.emit("sessions:list", Object.values(sessions).map(s => ({
-        id: s.id, label: s.label, lastSeen: s.lastSeen,
-        latest: s.positions[s.positions.length - 1] || null
-      })));
-      console.log(`[✓] Police dashboard authenticated: ${socket.id}`);
-    } else {
-      socket.emit("police:auth:fail");
-    }
+  // Police dashboard authentication (now open)
+  socket.on("police:auth", () => {
+    policeClients.add(socket.id);
+    socket.emit("police:auth:ok");
+    // Send current session list
+    socket.emit("sessions:list", Object.values(sessions).map(s => ({
+      id: s.id, label: s.label, lastSeen: s.lastSeen,
+      latest: s.positions[s.positions.length - 1] || null
+    })));
+    console.log(`[✓] Police dashboard connected: ${socket.id}`);
   });
 
   // Tracker device joins a session
@@ -148,6 +141,5 @@ function broadcastToPolice(event, data) {
 // ─── Start ────────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
   console.log(`\n🚔 Police GPS Tracker running at http://localhost:${PORT}`);
-  console.log(`   Dashboard : http://localhost:${PORT}/dashboard`);
-  console.log(`   Password  : ${POLICE_PASSWORD}\n`);
+  console.log(`   Dashboard : http://localhost:${PORT}/dashboard\n`);
 });

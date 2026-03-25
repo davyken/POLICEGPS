@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Police GPS Tracker</title>
+  <link rel="manifest" href="/manifest.json" />
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚔</text></svg>" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 500px;
+    }
+
+    .logo {
+      font-size: 80px;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      color: #fff;
+      margin-bottom: 10px;
+    }
+
+    .subtitle {
+      font-size: 1.1rem;
+      color: #718096;
+      margin-bottom: 40px;
+    }
+
+    .btn {
+      display: inline-block;
+      background: #3182ce;
+      color: white;
+      text-decoration: none;
+      border: none;
+      border-radius: 12px;
+      padding: 18px 40px;
+      font-size: 1.2rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+
+    .btn:hover {
+      background: #2b6cb0;
+    }
+
+    .features {
+      margin-top: 50px;
+      text-align: left;
+    }
+
+    .features h3 {
+      color: #718096;
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      margin-bottom: 20px;
+    }
+
+    .feature {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 16px;
+      color: #a0aec0;
+    }
+
+    .feature-icon {
+      font-size: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="logo">🚔</div>
+    <h1>Police GPS Tracker</h1>
+    <p class="subtitle">Real-time GPS tracking system for law enforcement</p>
+    
+    <a href="/dashboard" class="btn">Open Dashboard</a>
+
+    <div class="features">
+      <h3>Features</h3>
+      <div class="feature">
+        <span class="feature-icon">📍</span>
+        <span>Real-time location tracking</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🗺️</span>
+        <span>Live map with satellite view</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">📊</span>
+        <span>Movement history and trails</span>
+      </div>
+      <div class="feature">
+        <span class="feature-icon">🔗</span>
+        <span>Shareable tracking links</span>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

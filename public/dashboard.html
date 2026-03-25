@@ -378,7 +378,6 @@
 <script src="/socket.io/socket.io.js"></script>
 <script>
 // ── State ────────────────────────────────────────────────────────────────────
-let policePassword = "";
 let socket;
 let map, tileLayer;
 let activeSessionId = null;
@@ -514,17 +513,13 @@ function clearRoute() {
 }
 
 // ── Login ────────────────────────────────────────────────────────────────────
-// Check for saved session on page load
-if (localStorage.getItem("policePassword")) {
-  policePassword = localStorage.getItem("policePassword");
+// ── Auto-connect on page load ─────────────────────────────────────────────────
+window.addEventListener("DOMContentLoaded", () => {
   initSocket();
-}
+});
 
 function login() {
-  const pwd = document.getElementById("pwdInput").value.trim();
-  if (!pwd) return;
-
-  policePassword = pwd;
+  // No longer needed - auto-connects
   initSocket();
 }
 
@@ -535,7 +530,8 @@ function initSocket() {
   socket.on("connect", () => {
     document.getElementById("connectionBadge").textContent = "Connected";
     document.getElementById("connectionBadge").className = "badge online";
-    socket.emit("police:auth", { password: policePassword });
+    // Auto-authenticate without password
+    socket.emit("police:auth", {});
   });
 
   socket.on("disconnect", () => {
@@ -544,17 +540,13 @@ function initSocket() {
   });
 
   socket.on("police:auth:ok", () => {
-    // Save password for session persistence
-    localStorage.setItem("policePassword", policePassword);
     document.getElementById("loginOverlay").style.display = "none";
     initMap();
-    showToast("✅ Authenticated successfully");
+    showToast("✅ Connected to tracking server");
   });
 
   socket.on("police:auth:fail", () => {
-    document.getElementById("loginError").textContent = "Incorrect password. Try again.";
-    // Clear saved password on failure
-    localStorage.removeItem("policePassword");
+    // Should not happen anymore
   });
 
   socket.on("sessions:list", (list) => {
@@ -808,7 +800,7 @@ async function generateLink() {
     const res = await fetch("/api/session", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ password: policePassword, label })
+      body: JSON.stringify({ label })
     });
     const data = await res.json();
     if (data.error) { alert(data.error); return; }
