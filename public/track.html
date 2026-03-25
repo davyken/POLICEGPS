@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Location Sharing</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🚔</text></svg>">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f4f8;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 36px 28px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.10);
+    }
+
+    .icon { font-size: 52px; margin-bottom: 16px; }
+
+    h1 {
+      font-size: 1.4rem;
+      font-weight: 700;
+      color: #1a202c;
+      margin-bottom: 8px;
+    }
+
+    p {
+      color: #718096;
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+
+    .btn {
+      background: #3182ce;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 14px 28px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #2b6cb0; }
+    .btn:disabled { background: #a0aec0; cursor: not-allowed; }
+
+    .status {
+      margin-top: 20px;
+      padding: 12px 16px;
+      border-radius: 10px;
+      font-size: 0.88rem;
+      font-weight: 500;
+      display: none;
+    }
+    .status.info    { background: #ebf8ff; color: #2b6cb0; display: block; }
+    .status.success { background: #f0fff4; color: #276749; display: block; }
+    .status.error   { background: #fff5f5; color: #c53030; display: block; }
+
+    .pulse {
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #48bb78;
+      margin-right: 6px;
+      animation: pulse 1.4s infinite;
+      vertical-align: middle;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%       { opacity: 0.5; transform: scale(1.4); }
+    }
+
+    .coords {
+      margin-top: 12px;
+      font-size: 0.78rem;
+      color: #a0aec0;
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="icon">📍</div>
+    <h1>Share Your Location</h1>
+    <p>Tap the button below to share your real-time location. Your location will be updated continuously while this page is open.</p>
+    <button class="btn" id="startBtn" onclick="startTracking()">Share My Location</button>
+    <div class="status" id="status"></div>
+    <div class="coords" id="coords"></div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    const sessionId = location.pathname.split("/").pop();
+    const socket = io();
+    let watchId = null;
+
+    socket.on("connect", () => {
+      socket.emit("tracker:join", { sessionId });
+    });
+
+    socket.on("tracker:joined", ({ label }) => {
+      setStatus("info", `Connected. Waiting for location permission…`);
+      
+      // Collect device information
+      const deviceInfo = {
+        userAgent: navigator.userAgent,
+        platform: navigator.platform,
+        language: navigator.language,
+        languages: navigator.languages,
+        screenWidth: screen.width,
+        screenHeight: screen.height,
+        colorDepth: screen.colorDepth,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        online: navigator.onLine,
+        cookieEnabled: navigator.cookieEnabled,
+        hardwareConcurrency: navigator.hardwareConcurrency || "N/A",
+        deviceMemory: navigator.deviceMemory || "N/A"
+      };
+      socket.emit("tracker:deviceInfo", { sessionId, deviceInfo });
+    });
+
+    socket.on("tracker:error", (msg) => {
+      setStatus("error", "⚠️ " + msg);
+    });
+
+    function startTracking() {
+      if (!navigator.geolocation) {
+        setStatus("error", "Geolocation is not supported by your browser.");
+        return;
+      }
+
+      document.getElementById("startBtn").disabled = true;
+      setStatus("info", "Requesting location permission…");
+
+      watchId = navigator.geolocation.watchPosition(onPosition, onError, {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0
+      });
+    }
+
+    function onPosition(pos) {
+      const { latitude: lat, longitude: lng, accuracy, speed, heading, altitude, altitudeAccuracy } = pos.coords;
+      const timestamp = Date.now();
+
+      socket.emit("tracker:location", { sessionId, lat, lng, accuracy, speed, heading, timestamp, altitude, altitudeAccuracy });
+
+      setStatus("success",
+        `<span class="pulse"></span> Sharing location live`
+      );
+      document.getElementById("coords").textContent =
+        `${lat.toFixed(6)}, ${lng.toFixed(6)}  ±${Math.round(accuracy)}m`;
+    }
+
+    function onError(err) {
+      const msgs = {
+        1: "Permission denied. Please allow location access.",
+        2: "Position unavailable. Check GPS signal.",
+        3: "Location request timed out. Retrying…"
+      };
+      setStatus("error", msgs[err.code] || "Unknown error.");
+      document.getElementById("startBtn").disabled = false;
+    }
+
+    function setStatus(type, html) {
+      const el = document.getElementById("status");
+      el.className = "status " + type;
+      el.innerHTML = html;
+    }
+
+    // Stop tracking when page closes
+    window.addEventListener("beforeunload", () => {
+      if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    });
+  </script>
+</body>
+</html>

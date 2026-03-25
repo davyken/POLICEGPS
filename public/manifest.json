@@ -1,0 +1,18 @@
+{
+  "name": "Police GPS Tracker",
+  "short_name": "GPS Tracker",
+  "description": "Real-time GPS tracking system for law enforcement",
+  "start_url": "/dashboard",
+  "display": "standalone",
+  "background_color": "#0f1117",
+  "theme_color": "#3182ce",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
