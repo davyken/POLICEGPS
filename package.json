@@ -1,5 +1,5 @@
 {
-  "name": "police-gps-tracker",
+  "name": "Phantom track",
   "version": "1.0.0",
   "description": "Real-time GPS tracking system for law enforcement",
   "main": "server.js",

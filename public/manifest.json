@@ -1,5 +1,5 @@
 {
-  "name": "Police GPS Tracker",
+  "name": "Phantom Track",
   "short_name": "GPS Tracker",
   "description": "Real-time GPS tracking system for law enforcement",
   "start_url": "/dashboard",
